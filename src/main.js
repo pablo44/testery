@@ -1,30 +1,25 @@
-import './style.css'
+import './style.css' 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-//scene set up
-
+// Create a scene
 const scene = new THREE.Scene();
 
-//create pespective Camera
-
+// Set up a camera with perspective view
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
-
 );
 
-//renderer as a DOM element
-
-const renderer= new THREE.WebGLRenderer({ antialias: true });
+// Create the renderer and add it to the DOM
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.render(scene, camera);
 
-//ambient light and directional light
-
+// Add ambient and directional light
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
@@ -32,8 +27,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(0, 1, 1).normalize();
 scene.add(directionalLight);
 
-//flool chekboard patern floor using template literas to implement GLSL code as a string(procedural texture)
-
+// Create procedural checkerboard floor
 const floorGeometry = new THREE.PlaneGeometry(10, 10);
 const floorMaterial = new THREE.ShaderMaterial({
   vertexShader: `
@@ -42,8 +36,7 @@ const floorMaterial = new THREE.ShaderMaterial({
       vUv = uv;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
-  `
-  ,
+  `,
   fragmentShader: `
     varying vec2 vUv;
     void main() {
@@ -59,31 +52,25 @@ const floorMaterial = new THREE.ShaderMaterial({
 
 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
 floor.rotation.x = -Math.PI / 2;
-floor. position.y = -0.5;
+floor.position.y = -0.5;
 scene.add(floor);
 
-//setting camera pos and making camera looking at the user no one else
-
+// Camera positioning
 camera.position.set(3, 3, 5);
 camera.lookAt(0, 0, 0);
 
-//raycaster for mouse
-
+// Mouse interaction
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-
 function onMouseMove(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = (event.clientY/ window.innerHeight) * 2 + 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 }
-
 window.addEventListener('mousemove', onMouseMove, false);
 
-
-//model deformation func includin specific model construction made of ffew meshes
-
-function DeformModelX(amount, model) {
+// Deformation function with safety check
+function deformModelX(amount, model) {
   if (!model) return;
 
   model.traverse((child) => {
@@ -112,8 +99,7 @@ function DeformModelX(amount, model) {
   });
 }
 
-//deformation canceling with "r" keyboard
-
+// Reset deformation
 function resetDeformation(model) {
   if (!model) return;
 
@@ -134,11 +120,11 @@ function resetDeformation(model) {
   });
 }
 
-//loading a model of a couch
-
+// Load a 3D model (GLB format)
 const loader = new GLTFLoader();
 let model;
 
+// Use correct path to the model
 const modelUrl = '/models/couch_model.glb';
 
 loader.load(
@@ -151,9 +137,39 @@ loader.load(
   },
   undefined,
   function (error) {
-    console.error('Errorloading model:', error);
+    console.error('Error loading model:', error);
   }
 );
 
-//zooming the scene
+// Zoom functionality
+window.addEventListener('wheel', (event) => {
+  camera.position.z += event.deltaY > 0 ? 0.05 : -0.05;
+  camera.lookAt(0, 0, 0);
+});
 
+// Raycaster logic for deformation
+window.addEventListener('click', () => {
+  if (model) {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(model, true);
+
+    if (intersects.length > 0) {
+      deformModelX(0.1, model);
+    }
+  }
+});
+
+// Reset deformation on "R" key press
+window.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() === 'r') {
+    resetDeformation(model);
+  }
+});
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  if (model) model.rotation.y += 0.01;
+  renderer.render(scene, camera);
+}
+animate();
