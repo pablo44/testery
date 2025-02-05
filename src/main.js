@@ -56,3 +56,104 @@ const floorMaterial = new THREE.ShaderMaterial({
     }
   `
 });
+
+const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.rotation.x = -Math.PI / 2;
+floor. position.y = -0.5;
+scene.add(floor);
+
+//setting camera pos and making camera looking at the user no one else
+
+camera.position.set(3, 3, 5);
+camera.lookAt(0, 0, 0);
+
+//raycaster for mouse
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+
+function onMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = (event.clientY/ window.innerHeight) * 2 + 1;
+}
+
+window.addEventListener('mousemove', onMouseMove, false);
+
+
+//model deformation func includin specific model construction made of ffew meshes
+
+function DeformModelX(amount, model) {
+  if (!model) return;
+
+  model.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      const positionAttribute = child.geometry.attributes.position;
+      if (!child.geometry.attributes.originalPosition) {
+        child.geometry.setAttribute(
+          'originalPosition',
+          new THREE.BufferAttribute(positionAttribute.array.slice(), 3)
+        );
+      }
+      const originalPositionAttribute = child.geometry.attributes.originalPosition;
+      const positions = positionAttribute.array;
+      const originalPositions = originalPositionAttribute.array;
+
+      for (let i = 0; i < positions.length; i += 3) {
+        const maxDisplacement = 0.5;
+        const displacement = positions[i] - originalPositions[i];
+
+        if (Math.abs(displacement + amount) <= maxDisplacement) {
+          positions[i] += amount;
+        }
+      }
+      positionAttribute.needsUpdate = true;
+    }
+  });
+}
+
+//deformation canceling with "r" keyboard
+
+function resetDeformation(model) {
+  if (!model) return;
+
+  model.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      const positionAttribute = child.geometry.attributes.position;
+      const originalPositionAttribute = child.geometry.attributes.originalPosition;
+      if (!originalPositionAttribute) return;
+
+      const positions = positionAttribute.array;
+      const originalPositions = originalPositionAttribute.array;
+
+      for (let i = 0; i < positions.length; i++) {
+        positions[i] = originalPositions[i];
+      }
+      positionAttribute.needsUpdate = true;
+    }
+  });
+}
+
+//loading a model of a couch
+
+const loader = new GLTFLoader();
+let model;
+
+const modelUrl = '/models/couch_model.glb';
+
+loader.load(
+  modelUrl,
+  function (gltf) {
+    model = gltf.scene;
+    model.scale.set(1, 1, 1);
+    model.position.y = 0.5;
+    scene.add(model);
+  },
+  undefined,
+  function (error) {
+    console.error('Errorloading model:', error);
+  }
+);
+
+//zooming the scene
+
